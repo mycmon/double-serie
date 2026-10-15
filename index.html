@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Double Série - Jeu Local</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; user-select: none; background-color: #f8fafc; }
+        .card-cell { box-sizing: border-box; box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.9); transition: all 0.2s ease; }
+        .hand-card { transition: transform 0.2s, border-color 0.2s; cursor: pointer; }
+        .hand-card:hover { transform: translateY(-6px); }
+        .hand-card.selected { border: 3px solid #6366f1; transform: translateY(-10px); box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4); }
+        .cell-highlight {
+            box-shadow: inset 0 0 0 3px #6366f1, 0 0 12px rgba(99, 102, 241, 0.6) !important;
+            background-color: rgba(224, 231, 255, 0.5) !important;
+            animation: pulse-light 1.5s infinite;
+        }
+        @keyframes pulse-light {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        @keyframes pop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .victory-pop { animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between p-3">
+
+    <!-- En-tête -->
+    <header class="w-full max-w-5xl mx-auto bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-black text-slate-900"><span class="text-red-600">Double</span> <span class="text-emerald-600">Série</span></h1>
+            <p id="turn-display" class="text-xs font-semibold text-slate-500">Tour de l'équipe : <span id="turn-name" class="text-red-600 font-bold">Rouge</span></p>
+        </div>
+        <div class="flex gap-4 items-center">
+            <button onclick="initGame()" class="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition">Nouvelle Partie</button>
+        </div>
+    </header>
+
+    <!-- Zone principale -->
+    <main class="w-full max-w-5xl mx-auto flex flex-col lg:flex-row gap-5 items-start justify-center my-3">
+        
+        <!-- Plateau central -->
+        <div class="flex-1 w-full max-w-[550px] flex flex-col items-center mx-auto">
+            <div class="relative w-full aspect-square bg-white rounded-2xl p-2 border-4 border-slate-300 shadow-xl overflow-hidden flex items-center justify-center">
+                <div id="vector-board" class="absolute inset-2 grid grid-cols-10 grid-rows-10 gap-[2px] bg-slate-200 p-1 rounded-xl"></div>
+                <div id="tokens-layer" class="absolute inset-2 grid grid-cols-10 grid-rows-10 gap-[2px] p-1 pointer-events-auto"></div>
+            </div>
+        </div>
+
+        <!-- Panneau latéral : Mains & Scores -->
+        <div class="w-full lg:w-80 flex flex-col gap-4">
+            
+            <!-- Scores -->
+            <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm grid grid-cols-2 gap-3 text-center">
+                <div class="bg-red-50 border border-red-200 p-2 rounded-xl">
+                    <span class="text-xs font-bold text-red-700 block">Rouge</span>
+                    <span id="score-red" class="text-xl font-black text-red-600">0 / 2</span>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
+                    <span class="text-xs font-bold text-emerald-700 block">Vert</span>
+                    <span id="score-green" class="text-xl font-black text-emerald-600">0 / 2</span>
+                </div>
+            </div>
+
+            <!-- Main active -->
+            <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <h2 id="hand-title" class="text-xs font-bold uppercase tracking-wider text-slate-400">Main de Rouge</h2>
+                    <button onclick="toggleSecretHand()" class="text-[11px] bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded-lg hover:bg-indigo-100">Afficher/Cacher</button>
+                </div>
+                
+                <div id="player-hand" class="flex gap-2 overflow-x-auto py-2 min-h-[90px] items-center justify-center"></div>
+                
+                <!-- Remplacement carte injouable -->
+                <div id="replace-container" class="hidden mt-1">
+                    <button onclick="replaceDeadCard()" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow transition">
+                        Remplacer cette carte injouable
+                    </button>
+                </div>
+
+                <p class="text-[11px] text-indigo-600 font-medium text-center mt-1">Sélectionnez une carte, puis cliquez sur une case illuminée.</p>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Modale Victoire -->
+    <div id="victory-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="bg-white border-2 border-amber-400 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center victory-pop">
+            <h2 class="text-xs font-black uppercase tracking-widest text-amber-600 mb-1">VICTOIRE !</h2>
+            <h3 id="victory-winner" class="text-2xl font-black text-slate-900 mb-3">L'équipe Gagne !</h3>
+            <button onclick="initGame(); document.getElementById('victory-modal').classList.add('hidden');" class="w-full py-3 bg-amber-500 text-white font-extrabold rounded-xl shadow">Rejouer</button>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 10;
+        const CARD_LAYOUT = [
+            ["JOKER", "10♦", "9♦", "8♦", "7♦", "7♠", "8♠", "9♠", "10♠", "JOKER"],
+            ["10♣", "K♣", "6♦", "5♦", "4♦", "4♠", "5♠", "6♠", "K♥", "10♥"],
+            ["9♣", "6♣", "Q♣", "3♦", "2♦", "2♠", "3♠", "Q♥", "6♥", "9♥"],
+            ["8♣", "5♣", "3♣", "Q♦", "A♦", "A♠", "Q♠", "3♥", "5♥", "8♥"],
+            ["7♣", "4♣", "2♣", "A♣", "K♦", "K♠", "A♥", "2♥", "4♥", "7♥"],
+            ["7♥", "4♥", "2♥", "A♥", "K♠", "K♦", "A♣", "2♣", "4♣", "7♣"],
+            ["8♥", "5♥", "3♥", "Q♠", "A♠", "A♦", "Q♦", "3♣", "5♣", "8♣"],
+            ["9♥", "6♥", "Q♥", "3♠", "2♠", "2♦", "3♦", "Q♣", "6♣", "9♣"],
+            ["10♥", "K♥", "6♠", "5♠", "4♠", "4♦", "5♦", "6♦", "K♣", "10♣"],
+            ["JOKER", "10♠", "9♠", "8♠", "7♠", "7♦", "8♦", "9♦", "10♦", "JOKER"]
+        ];
+
+        let boardState = [];
+        let deck = [];
+        let hands = { red: [], green: [] };
+        let turn = 'red';
+        let verifiedSeries = { red: [], green: [] };
+        let selectedHandIndex = null;
+        let handVisible = true;
+        let gameOver = false;
+
+        function createDoubleDeck() {
+            let d = [];
+            const suits = ['♠', '♥', '♦', '♣'];
+            const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+            for (let i = 0; i < 2; i++) {
+                suits.forEach(s => ranks.forEach(r => d.push(r + s)));
+                d.push("JOKER", "JOKER");
+            }
+            return d.sort(() => Math.random() - 0.5);
+        }
+
+        function initGame() {
+            boardState = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
+            deck = createDoubleDeck();
+            hands.red = [];
+            hands.green = [];
+            turn = 'red';
+            verifiedSeries = { red: [], green: [] };
+            selectedHandIndex = null;
+            gameOver = false;
+
+            for (let i = 0; i < 6; i++) {
+                hands.red.push(deck.pop());
+                hands.green.push(deck.pop());
+            }
+
+            buildBoardDOM();
+            updateUI();
+        }
+
+        function buildBoardDOM() {
+            const vectorBoard = document.getElementById('vector-board');
+            const tokensLayer = document.getElementById('tokens-layer');
+            vectorBoard.innerHTML = '';
+            tokensLayer.innerHTML = '';
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cardCode = CARD_LAYOUT[r][c];
+                    const cardDiv = document.createElement('div');
+                    cardDiv.id = `card-cell-${r}-${c}`;
+                    
+                    if (cardCode === "JOKER") {
+                        cardDiv.className = "card-cell bg-gradient-to-br from-amber-100 to-orange-100 rounded flex flex-col items-center justify-between p-0.5 border border-amber-300 text-[8px]";
+                        cardDiv.innerHTML = `<span class="font-black text-amber-700">JOKER</span><span class="text-xs text-amber-500">★</span>`;
+                    } else {
+                        const rank = cardCode.slice(0, -1);
+                        const suit = cardCode.slice(-1);
+                        const isRed = (suit === '♥' || suit === '♦');
+                        const textColor = isRed ? "text-red-600" : "text-slate-900";
+                        cardDiv.className = "card-cell bg-white rounded flex flex-col items-center justify-between p-0.5 border border-slate-300";
+                        cardDiv.innerHTML = `
+                            <div class="w-full flex justify-between px-0.5"><span class="text-[9px] font-black ${textColor}">${rank}</span><span class="text-[8px] ${textColor}">${suit}</span></div>
+                            <div class="text-base font-black ${textColor} my-auto">${suit}</div>
+                            <div class="w-full flex justify-between px-0.5 rotate-180"><span class="text-[9px] font-black ${textColor}">${rank}</span><span class="text-[8px] ${textColor}">${suit}</span></div>
+                        `;
+                    }
+                    vectorBoard.appendChild(cardDiv);
+
+                    const tokenCell = document.createElement('div');
+                    tokenCell.className = 'cursor-pointer flex items-center justify-center rounded-full';
+                    tokenCell.id = `token-${r}-${c}`;
+                    tokenCell.onclick = () => handleBoardClick(r, c);
+                    tokensLayer.appendChild(tokenCell);
+                }
+            }
+        }
+
+        function handleBoardClick(r, c) {
+            if (gameOver || selectedHandIndex === null) return;
+            const card = hands[turn][selectedHandIndex];
+            const boardCard = CARD_LAYOUT[r][c];
+            const cell = boardState[r][c];
+            let valid = false;
+
+            const is2EyedJack = (card === 'J♥' || card === 'J♦');
+            const is1EyedJack = (card === 'J♠' || card === 'J♣');
+            const isJoker = (card === 'JOKER');
+
+            if (is2EyedJack && cell === null) {
+                valid = true;
+            } else if (is1EyedJack && cell && cell.player !== turn) {
+                // Vérifier si le jeton n'est pas verrouillé
+                const locked = [...verifiedSeries.red, ...verifiedSeries.green].some(s => s.some(p => p.r === r && p.c === c));
+                if (!locked) {
+                    boardState[r][c] = null;
+                    valid = true;
+                }
+            } else if (isJoker && boardCard === 'JOKER' && cell === null) {
+                valid = true;
+            } else if (boardCard === card && cell === null) {
+                valid = true;
+            }
+
+            if (valid) {
+                if (!is1EyedJack) {
+                    boardState[r][c] = { player: turn };
+                }
+                hands[turn].splice(selectedHandIndex, 1);
+                if (deck.length > 0) hands[turn].push(deck.pop());
+                
+                selectedHandIndex = null;
+                recalculateSeries();
+                turn = turn === 'red' ? 'green' : 'red';
+                handVisible = false; // Cache la main lors du changement de tour pour garder le secret entre joueurs
+                updateUI();
+            }
+        }
+
+        function replaceDeadCard() {
+            if (selectedHandIndex === null) return;
+            hands[turn].splice(selectedHandIndex, 1);
+            if (deck.length > 0) hands[turn].push(deck.pop());
+            selectedHandIndex = null;
+            updateUI();
+        }
+
+        function toggleSecretHand() {
+            handVisible = !handVisible;
+            renderHand();
+        }
+
+        function recalculateSeries() {
+            // Logique de validation simplifiée des séries
+            const getValid = (color) => {
+                let found = [];
+                const dirs = [{dr:0, dc:1}, {dr:1, dc:0}, {dr:1, dc:1}, {dr:1, dc:-1}];
+                for(let r=0; r<10; r++) {
+                    for(let c=0; c<10; c++) {
+                        if (CARD_LAYOUT[r][c] === 'JOKER' || (boardState[r][c] && boardState[r][c].player === color)) {
+                            dirs.forEach(d => {
+                                let line = [{r, c}];
+                                let step = 1;
+                                while(true) {
+                                    let nr = r + d.dr*step, nc = c + d.dc*step;
+                                    if(nr>=0 && nr<10 && nc>=0 && nc<10 && (CARD_LAYOUT[nr][nc] === 'JOKER' || (boardState[nr][nc] && boardState[nr][nc].player === color))) {
+                                        line.push({r: nr, c: nc});
+                                        step++;
+                                    } else break;
+                                }
+                                if(line.length >= 5) {
+                                    for(let i=0; i<=line.length-5; i++) found.push(line.slice(i, i+5));
+                                }
+                            });
+                        }
+                    }
+                }
+                return found.length > 0 ? [found[0]] : [];
+            };
+            verifiedSeries.red = getValid('red');
+            verifiedSeries.green = getValid('green');
+            if(verifiedSeries.red.length >= 2) triggerWin('Rouge');
+            if(verifiedSeries.green.length >= 2) triggerWin('Vert');
+        }
+
+        function triggerWin(winner) {
+            gameOver = true;
+            document.getElementById('victory-winner').textContent = `L'équipe ${winner} remporte la partie !`;
+            document.getElementById('victory-modal').classList.remove('hidden');
+            document.getElementById('victory-modal').classList.add('flex');
+        }
+
+        function updateUI() {
+            document.getElementById('turn-name').textContent = turn === 'red' ? 'Rouge' : 'Vert';
+            document.getElementById('turn-name').className = turn === 'red' ? 'text-red-600 font-bold' : 'text-emerald-600 font-bold';
+            document.getElementById('hand-title').textContent = `Main de ${turn === 'red' ? 'Rouge' : 'Vert'}`;
+            document.getElementById('score-red').textContent = `${verifiedSeries.red.length} / 2`;
+            document.getElementById('score-green').textContent = `${verifiedSeries.green.length} / 2`;
+
+            renderHand();
+            renderBoardTokens();
+            renderHighlights();
+        }
+
+        function renderHand() {
+            const container = document.getElementById('player-hand');
+            container.innerHTML = '';
+            if (!handVisible) {
+                container.innerHTML = `<button onclick="toggleSecretHand()" class="py-2 px-4 bg-slate-900 text-white rounded-xl text-xs font-bold">Afficher la main de ${turn === 'red' ? 'Rouge' : 'Vert'}</button>`;
+                return;
+            }
+
+            hands[turn].forEach((card, idx) => {
+                const el = document.createElement('div');
+                const isJ = card === 'JOKER';
+                const rank = isJ ? '★' : card.slice(0, -1);
+                const suit = isJ ? '★' : card.slice(-1);
+                const isRed = suit === '♥' || suit === '♦';
+                el.className = `hand-card w-12 h-16 bg-white rounded-lg border-2 border-slate-200 flex flex-col items-center justify-between p-1 font-black text-xs ${isRed ? 'text-red-600' : 'text-slate-900'} ${selectedHandIndex === idx ? 'selected' : ''}`;
+                el.innerHTML = `<div class="w-full flex justify-between text-[9px]"><span>${rank}</span><span>${suit}</span></div><div class="text-base">${suit}</div><div class="w-full flex justify-between text-[9px] rotate-180"><span>${rank}</span><span>${suit}</span></div>`;
+                el.onclick = () => { selectedHandIndex = selectedHandIndex === idx ? null : idx; updateUI(); };
+                container.appendChild(el);
+            });
+        }
+
+        function renderBoardTokens() {
+            let marked = new Set();
+            [...verifiedSeries.red, ...verifiedSeries.green].forEach(s => s.forEach(p => marked.add(`${p.r},${p.c}`)));
+
+            for(let r=0; r<10; r++) {
+                for(let c=0; c<10; c++) {
+                    const token = document.getElementById(`token-${r}-${c}`);
+                    const cell = boardState[r][c];
+                    token.innerHTML = '';
+                    token.className = 'cursor-pointer flex items-center justify-center rounded-full';
+                    if(cell) {
+                        token.className += ` ${cell.player === 'red' ? 'bg-red-600' : 'bg-emerald-600'} shadow-md`;
+                        if(marked.has(`${r},${c}`)) token.innerHTML = `<span class="text-amber-300 font-black text-sm">X</span>`;
+                    }
+                }
+            }
+        }
+
+        function renderHighlights() {
+            for(let r=0; r<10; r++) {
+                for(let c=0; c<10; c++) {
+                    document.getElementById(`card-cell-${r}-${c}`).classList.remove('cell-highlight');
+                }
+            }
+            document.getElementById('replace-container').classList.add('hidden');
+            if(selectedHandIndex === null || !handVisible) return;
+
+            const card = hands[turn][selectedHandIndex];
+            let posCount = 0, validCount = 0;
+            const is2J = card === 'J♥' || card === 'J♦';
+            const is1J = card === 'J♠' || card === 'J♣';
+            const isJk = card === 'JOKER';
+
+            for(let r=0; r<10; r++) {
+                for(let c=0; c<10; c++) {
+                    const bCard = CARD_LAYOUT[r][c];
+                    const cell = boardState[r][c];
+                    let highlight = false;
+
+                    if (is2J && cell === null) highlight = true;
+                    else if (is1J && cell && cell.player !== (turn === 'red' ? 'red' : 'green')) highlight = true;
+                    else if (isJk && bCard === 'JOKER' && cell === null) highlight = true;
+                    else if (!is2J && !is1J && !isJk && bCard === card) {
+                        posCount++;
+                        if(cell === null) { highlight = true; validCount++; }
+                    }
+
+                    if(highlight) document.getElementById(`card-cell-${r}-${c}`).classList.add('cell-highlight');
+                }
+            }
+
+            if(!is2J && !is1J && !isJk && posCount > 0 && validCount === 0) {
+                document.getElementById('replace-container').classList.remove('hidden');
+            }
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
