@@ -414,7 +414,7 @@
                 const isRed = (suit === '♥' || suit === '♦');
                 const textColor = isJ ? "text-amber-600" : (isRed ? "text-red-600" : "text-slate-900");
 
-                el.className = `hand-card w-12 h-16 bg-white rounded-lg border-2 border-slate-200 flex flex-col items-center justify-between p-1 font-black text-xs ${textColor} ${selectedHandIndex === idx ? 'selected' : ''}`;
+                el.className = `hand-card w-12 h-18 bg-white rounded-lg border-2 border-slate-200 flex flex-col items-center justify-between p-1 font-black text-xs ${textColor} ${selectedHandIndex === idx ? 'selected' : ''}`;
                 
                 if (isJ) {
                     el.innerHTML = `<div class="text-[7px]">JOKER</div><div class="text-base text-amber-500">★</div><div class="text-[7px] rotate-180">JOKER</div>`;
