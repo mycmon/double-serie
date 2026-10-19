@@ -3,16 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeu Double Série - 2 ou 4 Joueurs</title>
-    <!-- Tailwind CSS -->
+    <title>Double Série - Jeu de Plateau</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* ==========================================================
+           VARIABLES GLOBALES : Ajustez facilement tailles & styles ici
+           ========================================================== */
+        :root {
+            --card-font-size: 9px;       /* Taille des chiffres/symboles dans les coins */
+            --card-center-size: 14px;    /* Taille du symbole principal au centre */
+            --token-size: 26px;          /* Taille des jetons sur le plateau */
+        }
+
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         body { font-family: 'Inter', sans-serif; user-select: none; background-color: #f8fafc; }
-        .card-cell { box-sizing: border-box; box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.9); transition: all 0.2s ease; }
+        
+        .card-cell { 
+            box-sizing: border-box; 
+            box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.9); 
+            transition: all 0.2s ease; 
+        }
+
+        .dynamic-card-font { font-size: var(--card-font-size) !important; }
+        .dynamic-center-font { font-size: var(--card-center-size) !important; }
+        
         .hand-card { transition: transform 0.2s, border-color 0.2s; cursor: pointer; }
         .hand-card:hover { transform: translateY(-6px); }
         .hand-card.selected { border: 3px solid #6366f1; transform: translateY(-10px); box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4); }
+        
         .cell-highlight {
             box-shadow: inset 0 0 0 3px #6366f1, 0 0 12px rgba(99, 102, 241, 0.6) !important;
             background-color: rgba(224, 231, 255, 0.5) !important;
@@ -22,6 +40,22 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.6; }
         }
+
+        .score-active {
+            border-width: 3px !important;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.3) !important;
+            transform: scale(1.02);
+        }
+
+        .last-played-flash {
+            animation: flash-animation 0.8s ease-in-out 2;
+        }
+
+        @keyframes flash-animation {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.15); filter: brightness(1.6); box-shadow: 0 0 15px rgba(234, 179, 8, 0.9); }
+        }
+
         @keyframes pop {
             0% { transform: scale(0.8); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
@@ -32,90 +66,80 @@
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between p-3">
 
     <!-- En-tête -->
-    <header class="w-full max-w-5xl mx-auto bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+    <header class="w-full max-w-4xl mx-auto bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-black text-slate-900"><span class="text-red-600">Double</span> <span class="text-emerald-600">Série</span></h1>
-            <p id="turn-display" class="text-xs font-semibold text-slate-500">Tour : <span id="current-player-name" class="text-red-600 font-bold">Joueur 1</span> (<span id="current-team-name" class="font-bold">Équipe Rouge</span>)</p>
+            <p id="role-display" class="text-xs font-semibold text-slate-500">Version GitHub / Statique</p>
         </div>
         <div class="flex gap-2 items-center">
-            <button onclick="openConfigModal()" class="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1">
-                ⚙️ Configurer Partie
-            </button>
-            <button onclick="startNewGame()" class="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition">
-                Nouvelle Partie
-            </button>
+            <button onclick="openConfigModal()" class="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-bold transition">⚙️ Configurer</button>
+            <button onclick="resetGame()" class="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">Nouvelle Partie</button>
         </div>
     </header>
 
     <!-- Zone principale -->
-    <main class="w-full max-w-5xl mx-auto flex flex-col lg:flex-row gap-5 items-start justify-center my-3">
+    <main class="w-full max-w-4xl mx-auto flex flex-col lg:flex-row gap-5 items-start justify-center my-3">
         
         <!-- Plateau central -->
-        <div class="flex-1 w-full max-w-[550px] flex flex-col items-center mx-auto">
+        <div class="flex-1 w-full max-w-[650px] flex flex-col items-center mx-auto">
             <div class="relative w-full aspect-square bg-white rounded-2xl p-2 border-4 border-slate-300 shadow-xl overflow-hidden flex items-center justify-center">
                 <div id="vector-board" class="absolute inset-2 grid grid-cols-10 grid-rows-10 gap-[2px] bg-slate-200 p-1 rounded-xl"></div>
                 <div id="tokens-layer" class="absolute inset-2 grid grid-cols-10 grid-rows-10 gap-[2px] p-1 pointer-events-auto"></div>
             </div>
         </div>
 
-        <!-- Panneau latéral : Main & Scores -->
-        <div class="w-full lg:w-80 flex flex-col gap-4">
+        <!-- Panneau latéral -->
+        <div class="w-full lg:w-72 flex flex-col gap-4">
             
-            <!-- Scores des Équipes -->
-            <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm grid grid-cols-2 gap-3 text-center">
-                <div class="bg-red-50 border border-red-200 p-2 rounded-xl">
-                    <span id="label-team-red" class="text-xs font-bold text-red-700 block">Équipe Rouge</span>
-                    <span id="score-red" class="text-xl font-black text-red-600">0 / 2</span>
+            <!-- Scores -->
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl shadow-sm grid grid-cols-2 gap-2 text-center">
+                <div id="box-score-red" class="bg-red-50 border border-red-200 p-2 rounded-xl transition-all">
+                    <span id="label-team-red" class="text-[11px] font-bold text-red-700 block truncate">Équipe Rouge</span>
+                    <span id="score-red" class="text-lg font-black text-red-600">0 / 2</span>
                 </div>
-                <div class="bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
-                    <span id="label-team-green" class="text-xs font-bold text-emerald-700 block">Équipe Verte</span>
-                    <span id="score-green" class="text-xl font-black text-emerald-600">0 / 2</span>
+                <div id="box-score-green" class="bg-emerald-50 border border-emerald-200 p-2 rounded-xl transition-all">
+                    <span id="label-team-green" class="text-[11px] font-bold text-emerald-700 block truncate">Équipe Verte</span>
+                    <span id="score-green" class="text-lg font-black text-emerald-600">0 / 2</span>
                 </div>
             </div>
 
-            <!-- Main active -->
-            <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col gap-2">
-                <div class="flex justify-between items-center">
-                    <h2 id="hand-title" class="text-xs font-bold uppercase tracking-wider text-slate-400">Main de Joueur 1</h2>
-                    <button onclick="toggleHandVisibility()" class="text-[11px] bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded-lg hover:bg-indigo-100 transition">
-                        Afficher/Cacher
-                    </button>
-                </div>
-                
+            <!-- Main du joueur -->
+            <div class="bg-white border border-slate-200 p-3 rounded-2xl shadow-sm flex flex-col gap-2">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Votre Main de Cartes</h2>
                 <div id="player-hand" class="flex gap-2 overflow-x-auto py-2 min-h-[90px] items-center justify-center"></div>
                 
-                <!-- Remplacement de carte injouable -->
                 <div id="replace-container" class="hidden mt-1">
                     <button onclick="replaceDeadCard()" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow transition">
                         Remplacer cette carte injouable
                     </button>
                 </div>
+            </div>
 
-                <p id="instruction-tip" class="text-[11px] text-indigo-600 font-medium text-center mt-1">
-                    Sélectionnez une carte, puis cliquez sur une case illuminée.
-                </p>
+            <!-- Indicateur de tour -->
+            <div class="bg-white border border-slate-200 p-2.5 rounded-2xl shadow-sm flex items-center justify-between text-xs font-bold">
+                <span class="text-slate-500">Tour :</span>
+                <span id="turn-indicator" class="px-2.5 py-1 rounded-xl text-indigo-900 bg-indigo-50 border border-indigo-200 truncate max-w-[140px]">...</span>
             </div>
 
         </div>
     </main>
 
-    <!-- Modale de Configuration des Joueurs -->
+    <!-- Modale Configuration -->
     <div id="config-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl flex flex-col gap-4">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl flex flex-col gap-4">
             <h2 class="text-lg font-black text-slate-900 border-b pb-2">Configuration de la Partie</h2>
             
-            <!-- Choix du Mode -->
             <div>
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">Nombre de joueurs :</label>
                 <div class="grid grid-cols-2 gap-3">
-                    <label class="flex items-center gap-2 p-3 border-2 rounded-2xl cursor-pointer transition hover:bg-slate-50" id="mode-2p-label">
+                    <label class="flex items-center gap-2 p-3 border-2 rounded-2xl cursor-pointer hover:bg-slate-50">
                         <input type="radio" name="mode" value="2" checked onchange="updateConfigFields()" class="accent-indigo-600">
                         <div>
                             <div class="text-xs font-bold text-slate-800">2 Joueurs</div>
                             <div class="text-[10px] text-slate-500">7 cartes chacun</div>
                         </div>
                     </label>
-                    <label class="flex items-center gap-2 p-3 border-2 rounded-2xl cursor-pointer transition hover:bg-slate-50" id="mode-4p-label">
+                    <label class="flex items-center gap-2 p-3 border-2 rounded-2xl cursor-pointer hover:bg-slate-50">
                         <input type="radio" name="mode" value="4" onchange="updateConfigFields()" class="accent-indigo-600">
                         <div>
                             <div class="text-xs font-bold text-slate-800">4 Joueurs</div>
@@ -125,42 +149,40 @@
                 </div>
             </div>
 
-            <!-- Noms des Joueurs -->
             <div class="flex flex-col gap-3">
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Noms des joueurs :</label>
-                
                 <div class="bg-red-50 p-3 rounded-2xl border border-red-200 flex flex-col gap-2">
                     <span class="text-xs font-bold text-red-700">🔴 Équipe Rouge</span>
-                    <input id="input-p1" type="text" value="Joueur 1" placeholder="Nom Joueur 1" class="w-full text-xs px-3 py-2 border rounded-xl bg-white focus:outline-none">
-                    <input id="input-p3" type="text" value="Joueur 3" placeholder="Nom Joueur 3 (Partenaire)" class="w-full text-xs px-3 py-2 border rounded-xl bg-white focus:outline-none hidden">
+                    <input id="input-p1" type="text" value="Joueur 1" class="w-full text-xs px-3 py-2 border rounded-xl bg-white focus:outline-none">
+                    <input id="input-p3" type="text" value="Joueur 3" class="w-full text-xs px-3 py-2 border rounded-xl bg-white focus:outline-none hidden">
                 </div>
-
                 <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 flex flex-col gap-2">
                     <span class="text-xs font-bold text-emerald-700">🟢 Équipe Verte</span>
-                    <input id="input-p2" type="text" value="Joueur 2" placeholder="Nom Joueur 2" class="w-full text-xs px-3 py-2 border rounded-xl bg-white focus:outline-none">
-                    <input id="input-p4" type="text" value="Joueur 4" placeholder="Nom Joueur 4 (Partenaire)" class="w-full text-xs px-3 py-2 border rounded-xl bg-white focus:outline-none hidden">
+                    <input id="input-p2" type="text" value="Joueur 2" class="w-full text-xs px-3 py-2 border rounded-xl bg-white focus:outline-none">
+                    <input id="input-p4" type="text" value="Joueur 4" class="w-full text-xs px-3 py-2 border rounded-xl bg-white focus:outline-none hidden">
                 </div>
             </div>
 
-            <button onclick="applyConfigAndStart()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow transition mt-2">
-                Lancer la partie
-            </button>
+            <button onclick="applyConfigAndStart()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow transition">Lancer la partie</button>
         </div>
     </div>
 
     <!-- Modale de Victoire -->
     <div id="victory-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="bg-white border-2 border-amber-400 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center victory-pop">
-            <h2 class="text-xs font-black uppercase tracking-widest text-amber-600 mb-1">VICTOIRE ÉCLATANTE !</h2>
-            <h3 id="victory-winner" class="text-2xl font-black text-slate-900 mb-3">L'Équipe Gagne !</h3>
-            <button onclick="startNewGame(); document.getElementById('victory-modal').classList.add('hidden');" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-xl shadow transition text-xs">
-                Rejouer une partie
+            <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-500 flex items-center justify-center mx-auto mb-3 border-2 border-amber-300 text-2xl font-bold">
+                🏆
+            </div>
+            <h2 class="text-xs font-black uppercase tracking-widest text-amber-600 mb-1">VICTOIRE !</h2>
+            <h3 id="victory-winner" class="text-2xl font-black text-slate-900 mb-4">L'Équipe Gagne !</h3>
+            
+            <button onclick="closeVictoryModal()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl shadow transition text-xs">
+                OK (Consulter le plateau)
             </button>
         </div>
     </div>
 
     <script>
-        const GRID_SIZE = 10;
         const CARD_LAYOUT = [
             ["JOKER", "10♦", "9♦", "8♦", "7♦", "7♠", "8♠", "9♠", "10♠", "JOKER"],
             ["10♣", "K♣", "6♦", "5♦", "4♦", "4♠", "5♠", "6♠", "K♥", "10♥"],
@@ -174,19 +196,21 @@
             ["JOKER", "10♠", "9♠", "8♠", "7♠", "7♦", "8♦", "9♦", "10♦", "JOKER"]
         ];
 
-        // Configuration
-        let playerCountMode = 2; // 2 ou 4
-        let playerNames = { p1: "Joueur 1", p2: "Joueur 2", p3: "Joueur 3", p4: "Joueur 4" };
-
-        // État du jeu
-        let boardState = [];
-        let deck = [];
-        let playerHands = []; // Tableau de mains [hand0, hand1, ...]
-        let currentTurnIndex = 0; // 0 à playerCountMode - 1
-        let verifiedSeries = { red: [], green: [] };
+        let lastWinnerTeam = null;
         let selectedHandIndex = null;
-        let isHandVisible = true;
-        let gameOver = false;
+        let victoryModalShown = false;
+
+        let gameState = {
+            board: Array(10).fill(null).map(() => Array(10).fill(null)),
+            deck: [],
+            hands: [],
+            playerNames: ["Joueur 1", "Joueur 2", "Joueur 3", "Joueur 4"],
+            playerCountMode: 2,
+            currentTurnIndex: 0,
+            verifiedSeries: { red: [], green: [] },
+            lastPlayedCell: null,
+            gameOver: false
+        };
 
         function createDoubleDeck() {
             let d = [];
@@ -199,167 +223,74 @@
             return d.sort(() => Math.random() - 0.5);
         }
 
-        function getCurrentTeamColor() {
-            // En 2 ou 4 joueurs : Joueur 0 et 2 = Rouge, Joueur 1 et 3 = Vert
-            return (currentTurnIndex % 2 === 0) ? 'red' : 'green';
-        }
-
-        function getCurrentPlayerName() {
-            if (currentTurnIndex === 0) return playerNames.p1;
-            if (currentTurnIndex === 1) return playerNames.p2;
-            if (currentTurnIndex === 2) return playerNames.p3;
-            if (currentTurnIndex === 3) return playerNames.p4;
-            return "Joueur";
-        }
-
-        function startNewGame() {
-            boardState = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
-            deck = createDoubleDeck();
-            playerHands = Array(playerCountMode).fill(null).map(() => []);
-            currentTurnIndex = 0;
-            verifiedSeries = { red: [], green: [] };
+        function initNewGame() {
+            gameState.board = Array(10).fill(null).map(() => Array(10).fill(null));
+            gameState.deck = createDoubleDeck();
+            gameState.hands = Array(gameState.playerCountMode).fill(null).map(() => []);
+            gameState.lastPlayedCell = null;
             selectedHandIndex = null;
-            isHandVisible = true;
-            gameOver = false;
-
-            const cardsPerPlayer = (playerCountMode === 2) ? 7 : 5;
-            for (let c = 0; c < cardsPerPlayer; c++) {
-                for (let p = 0; p < playerCountMode; p++) {
-                    playerHands[p].push(deck.pop());
-                }
-            }
-
-            buildBoardDOM();
-            updateUI();
-        }
-
-        function buildBoardDOM() {
-            const vectorBoard = document.getElementById('vector-board');
-            const tokensLayer = document.getElementById('tokens-layer');
-            vectorBoard.innerHTML = '';
-            tokensLayer.innerHTML = '';
-
-            for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
-                    const cardCode = CARD_LAYOUT[r][c];
-                    const cardDiv = document.createElement('div');
-                    cardDiv.id = `card-cell-${r}-${c}`;
-                    
-                    if (cardCode === "JOKER") {
-                        cardDiv.className = "card-cell bg-gradient-to-br from-amber-100 to-orange-100 rounded flex flex-col items-center justify-between p-0.5 border border-amber-300 text-[8px]";
-                        cardDiv.innerHTML = `<span class="font-black text-amber-700">JOKER</span><span class="text-xs text-amber-500">★</span><span class="font-bold text-amber-700">GRATUIT</span>`;
-                    } else {
-                        const rank = cardCode.slice(0, -1);
-                        const suit = cardCode.slice(-1);
-                        const isRed = (suit === '♥' || suit === '♦');
-                        const textColor = isRed ? "text-red-600" : "text-slate-900";
-                        cardDiv.className = "card-cell bg-white rounded flex flex-col items-center justify-between p-0.5 border border-slate-300";
-                        cardDiv.innerHTML = `
-                            <div class="w-full flex justify-between px-0.5"><span class="text-[9px] font-black ${textColor}">${rank}</span><span class="text-[8px] ${textColor}">${suit}</span></div>
-                            <div class="text-base font-black ${textColor} my-auto">${suit}</div>
-                            <div class="w-full flex justify-between px-0.5 rotate-180"><span class="text-[9px] font-black ${textColor}">${rank}</span><span class="text-[8px] ${textColor}">${suit}</span></div>
-                        `;
-                    }
-                    vectorBoard.appendChild(cardDiv);
-
-                    const tokenCell = document.createElement('div');
-                    tokenCell.className = 'cursor-pointer flex items-center justify-center rounded-full';
-                    tokenCell.id = `token-${r}-${c}`;
-                    tokenCell.onclick = () => handleBoardClick(r, c);
-                    tokensLayer.appendChild(tokenCell);
-                }
-            }
-        }
-
-        function handleBoardClick(r, c) {
-            if (gameOver || selectedHandIndex === null) return;
+            victoryModalShown = false;
             
-            const teamColor = getCurrentTeamColor();
-            const opponentTeamColor = teamColor === 'red' ? 'green' : 'red';
-            const hand = playerHands[currentTurnIndex];
-            const card = hand[selectedHandIndex];
-            const boardCard = CARD_LAYOUT[r][c];
-            const cell = boardState[r][c];
-            let isValid = false;
+            if (lastWinnerTeam === 'red') {
+                gameState.currentTurnIndex = 0;
+            } else if (lastWinnerTeam === 'green') {
+                gameState.currentTurnIndex = 1;
+            } else {
+                gameState.currentTurnIndex = Math.floor(Math.random() * gameState.playerCountMode);
+            }
+            
+            gameState.gameOver = false;
+            gameState.verifiedSeries = { red: [], green: [] };
 
-            const is2EyedJack = (card === 'J♥' || card === 'J♦');
-            const is1EyedJack = (card === 'J♠' || card === 'J♣');
-            const isJokerCard = (card === 'JOKER');
-
-            if (is2EyedJack && cell === null) {
-                isValid = true;
-            } else if (is1EyedJack && cell && cell.player === opponentTeamColor) {
-                // Valet à 1 œil : retirer un jeton adverse non verrouillé
-                const isLocked = [...verifiedSeries.red, ...verifiedSeries.green].some(s => s.some(p => p.r === r && p.c === c));
-                if (!isLocked) {
-                    boardState[r][c] = null;
-                    isValid = true;
+            const cardsPerPlayer = (gameState.playerCountMode === 2) ? 7 : 5;
+            for (let c = 0; c < cardsPerPlayer; c++) {
+                for (let p = 0; p < gameState.playerCountMode; p++) {
+                    gameState.hands[p].push(gameState.deck.pop());
                 }
-            } else if (isJokerCard && boardCard === 'JOKER' && cell === null) {
-                isValid = true;
-            } else if (boardCard === card && cell === null) {
-                isValid = true;
             }
 
-            if (isValid) {
-                if (!is1EyedJack) {
-                    boardState[r][c] = { player: teamColor };
-                }
-                
-                // Défausser et piger
-                hand.splice(selectedHandIndex, 1);
-                if (deck.length > 0) hand.push(deck.pop());
-                
-                selectedHandIndex = null;
-                recalculateAllSeries();
-
-                // Passer au joueur suivant
-                currentTurnIndex = (currentTurnIndex + 1) % playerCountMode;
-                isHandVisible = false; // Cacher la main pour le joueur suivant
-                updateUI();
-            }
-        }
-
-        function replaceDeadCard() {
-            if (selectedHandIndex === null) return;
-            const hand = playerHands[currentTurnIndex];
-            hand.splice(selectedHandIndex, 1);
-            if (deck.length > 0) hand.push(deck.pop());
-            selectedHandIndex = null;
+            renderBoard();
+            renderHand();
             updateUI();
         }
 
-        function toggleHandVisibility() {
-            isHandVisible = !isHandVisible;
-            renderHand();
-            renderHighlights();
+        function resetGame() {
+            initNewGame();
+            closeVictoryModal();
         }
 
-        // Détection exacte des séries de 5 avec au plus 1 jeton partagé
+        function isCellValidForTeam(r, c, teamColor) {
+            if (r < 0 || r >= 10 || c < 0 || c >= 10) return false;
+            return gameState.board[r][c] !== null && gameState.board[r][c].player === teamColor;
+        }
+
         function recalculateAllSeries() {
-            const findSeries = (color) => {
+            const findSeriesForTeam = (teamColor) => {
                 const dirs = [{dr:0, dc:1}, {dr:1, dc:0}, {dr:1, dc:1}, {dr:1, dc:-1}];
                 let found = [];
-                for(let r=0; r<10; r++) {
-                    for(let c=0; c<10; c++) {
-                        if (CARD_LAYOUT[r][c] === 'JOKER' || (boardState[r][c] && boardState[r][c].player === color)) {
+
+                for (let r = 0; r < 10; r++) {
+                    for (let c = 0; c < 10; c++) {
+                        if (isCellValidForTeam(r, c, teamColor)) {
                             dirs.forEach(d => {
                                 let line = [{r, c}];
                                 let step = 1;
-                                while(true) {
-                                    let nr = r + d.dr*step, nc = c + d.dc*step;
-                                    if(nr>=0 && nr<10 && nc>=0 && nc<10 && (CARD_LAYOUT[nr][nc] === 'JOKER' || (boardState[nr][nc] && boardState[nr][nc].player === color))) {
-                                        line.push({r: nr, c: nc});
+                                while (true) {
+                                    let nr = r + d.dr * step;
+                                    let nc = c + d.dc * step;
+                                    if (isCellValidForTeam(nr, nc, teamColor)) {
+                                        line.push({ r: nr, c: nc });
                                         step++;
-                                    } else break;
+                                    } else {
+                                        break;
+                                    }
                                 }
-                                if(line.length >= 5) {
-                                    for(let i=0; i<=line.length-5; i++) {
-                                        let w5 = line.slice(i, i+5);
-                                        w5.sort((a,b) => a.r - b.r || a.c - b.c);
-                                        if(!found.some(s => s.every((p, idx) => p.r === w5[idx].r && p.c === w5[idx].c))) {
-                                            found.push(w5);
-                                        }
+                                if (line.length >= 5) {
+                                    for (let i = 0; i <= line.length - 5; i++) {
+                                        let window5 = line.slice(i, i + 5);
+                                        window5.sort((a, b) => a.r - b.r || a.c - b.c);
+                                        let exists = found.some(s => s.every((p, idx) => p.r === window5[idx].r && p.c === window5[idx].c));
+                                        if (!exists) found.push(window5);
                                     }
                                 }
                             });
@@ -369,114 +300,135 @@
                 return found;
             };
 
-            const selectNonConflicting = (all) => {
-                if(all.length <= 1) return all.slice(0, 1);
-                for(let i=0; i<all.length; i++) {
-                    for(let j=i+1; j<all.length; j++) {
+            const selectNonConflicting = (allSeries) => {
+                if (allSeries.length <= 1) return allSeries.slice(0, 1);
+                for (let i = 0; i < allSeries.length; i++) {
+                    for (let j = i + 1; j < allSeries.length; j++) {
                         let shared = 0;
-                        all[i].forEach(p1 => { if(all[j].some(p2 => p2.r === p1.r && p2.c === p1.c)) shared++; });
-                        if(shared <= 1) return [all[i], all[j]];
+                        allSeries[i].forEach(p1 => {
+                            if (allSeries[j].some(p2 => p2.r === p1.r && p2.c === p1.c)) shared++;
+                        });
+                        if (shared <= 1) return [allSeries[i], allSeries[j]];
                     }
                 }
-                return [all[0]];
+                return [allSeries[0]];
             };
 
-            verifiedSeries.red = selectNonConflicting(findSeries('red'));
-            verifiedSeries.green = selectNonConflicting(findSeries('green'));
+            gameState.verifiedSeries.red = selectNonConflicting(findSeriesForTeam('red'));
+            gameState.verifiedSeries.green = selectNonConflicting(findSeriesForTeam('green'));
 
-            if (verifiedSeries.red.length >= 2) triggerVictory("Équipe Rouge");
-            else if (verifiedSeries.green.length >= 2) triggerVictory("Équipe Verte");
+            if (gameState.verifiedSeries.red.length >= 2) {
+                gameState.gameOver = true;
+                lastWinnerTeam = 'red';
+            } else if (gameState.verifiedSeries.green.length >= 2) {
+                gameState.gameOver = true;
+                lastWinnerTeam = 'green';
+            }
         }
 
-        function triggerVictory(winnerTeam) {
-            gameOver = true;
-            document.getElementById('victory-winner').textContent = `${winnerTeam} remporte la victoire !`;
-            document.getElementById('victory-modal').classList.remove('hidden');
-            document.getElementById('victory-modal').classList.add('flex');
-        }
+        function renderBoard() {
+            const vectorBoard = document.getElementById('vector-board');
+            const tokensLayer = document.getElementById('tokens-layer');
+            if (vectorBoard.children.length === 0) {
+                for (let r = 0; r < 10; r++) {
+                    for (let c = 0; c < 10; c++) {
+                        const cardCode = CARD_LAYOUT[r][c];
+                        const cardDiv = document.createElement('div');
+                        cardDiv.id = `card-cell-${r}-${c}`;
+                        
+                        if (cardCode === "JOKER") {
+                            cardDiv.className = "card-cell bg-gradient-to-br from-amber-100 to-orange-100 rounded flex flex-col items-center justify-between p-0.5 border border-amber-300";
+                            cardDiv.innerHTML = `
+                                <span class="dynamic-card-font font-black text-amber-700 leading-none">JOKER</span>
+                                <span class="dynamic-center-font text-amber-500 font-extrabold leading-none my-auto">★</span>
+                                <span class="dynamic-card-font font-black text-amber-700 leading-none">JOKER</span>
+                            `;
+                        } else {
+                            const rank = cardCode.slice(0, -1);
+                            const suit = cardCode.slice(-1);
+                            const isRed = (suit === '♥' || suit === '♦');
+                            const textColor = isRed ? "text-red-600" : "text-slate-900";
+                            cardDiv.className = "card-cell bg-white rounded flex flex-col items-center justify-between p-0.5 border border-slate-300";
+                            cardDiv.innerHTML = `
+                                <div class="w-full flex justify-between px-0.5 leading-none">
+                                    <span class="dynamic-card-font font-black ${textColor}">${rank}</span>
+                                    <span class="dynamic-card-font font-black ${textColor}">${suit}</span>
+                                </div>
+                                <div class="dynamic-center-font font-black ${textColor} my-auto leading-none">${suit}</div>
+                                <div class="w-full flex justify-between px-0.5 rotate-180 leading-none">
+                                    <span class="dynamic-card-font font-black ${textColor}">${rank}</span>
+                                    <span class="dynamic-card-font font-black ${textColor}">${suit}</span>
+                                </div>
+                            `;
+                        }
+                        vectorBoard.appendChild(cardDiv);
 
-        function updateUI() {
-            const teamColor = getCurrentTeamColor();
-            const playerName = getCurrentPlayerName();
-            const teamNameText = teamColor === 'red' ? 'Équipe Rouge' : 'Équipe Verte';
-
-            document.getElementById('current-player-name').textContent = playerName;
-            document.getElementById('current-player-name').className = teamColor === 'red' ? 'text-red-600 font-bold' : 'text-emerald-600 font-bold';
-            document.getElementById('current-team-name').textContent = teamNameText;
-
-            document.getElementById('hand-title').textContent = `Main de : ${playerName}`;
-            
-            // Mis à jour des labels des équipes
-            if (playerCountMode === 2) {
-                document.getElementById('label-team-red').textContent = playerNames.p1;
-                document.getElementById('label-team-green').textContent = playerNames.p2;
-            } else {
-                document.getElementById('label-team-red').textContent = `Rouge (${playerNames.p1} & ${playerNames.p3})`;
-                document.getElementById('label-team-green').textContent = `Vert (${playerNames.p2} & ${playerNames.p4})`;
+                        const tokenCell = document.createElement('div');
+                        tokenCell.className = 'cursor-pointer flex items-center justify-center';
+                        tokenCell.id = `token-${r}-${c}`;
+                        tokenCell.onclick = () => handleBoardClick(r, c);
+                        tokensLayer.appendChild(tokenCell);
+                    }
+                }
             }
 
-            document.getElementById('score-red').textContent = `${verifiedSeries.red.length} / 2`;
-            document.getElementById('score-green').textContent = `${verifiedSeries.green.length} / 2`;
+            let markedSet = new Set();
+            [...gameState.verifiedSeries.red, ...gameState.verifiedSeries.green].forEach(s => s.forEach(p => markedSet.add(`${p.r},${p.c}`)));
 
-            renderHand();
-            renderBoardTokens();
-            renderHighlights();
+            for (let r = 0; r < 10; r++) {
+                for (let c = 0; c < 10; c++) {
+                    const token = document.getElementById(`token-${r}-${c}`);
+                    const cell = gameState.board[r][c];
+                    token.innerHTML = '';
+                    token.className = 'cursor-pointer flex items-center justify-center';
+                    
+                    if (cell) {
+                        const bgClass = cell.player === 'red' ? 'bg-red-600/90' : 'bg-emerald-600/90';
+                        token.innerHTML = `<div class="rounded-full ${bgClass} shadow border border-white/80 flex items-center justify-center transition-all" style="width: var(--token-size); height: var(--token-size);"></div>`;
+                        
+                        if (markedSet.has(`${r},${c}`)) {
+                            token.firstChild.innerHTML = `<span class="text-amber-300 font-black text-xs">X</span>`;
+                        }
+                    }
+
+                    if (gameState.lastPlayedCell && gameState.lastPlayedCell.r === r && gameState.lastPlayedCell.c === c) {
+                        token.classList.add('last-played-flash');
+                    } else {
+                        token.classList.remove('last-played-flash');
+                    }
+                }
+            }
         }
 
         function renderHand() {
             const container = document.getElementById('player-hand');
             container.innerHTML = '';
 
-            if (!isHandVisible) {
-                container.innerHTML = `<button onclick="toggleHandVisibility()" class="py-2.5 px-4 bg-slate-900 text-white rounded-xl text-xs font-bold shadow hover:bg-slate-800 transition">
-                    👁️ Afficher la main de ${getCurrentPlayerName()}
-                </button>`;
-                return;
-            }
+            const currentHand = gameState.hands[gameState.currentTurnIndex] || [];
 
-            const hand = playerHands[currentTurnIndex];
-            hand.forEach((card, idx) => {
+            currentHand.forEach((card, idx) => {
                 const el = document.createElement('div');
-                const isJoker = (card === 'JOKER');
-                const rank = isJoker ? '★' : card.slice(0, -1);
-                const suit = isJoker ? '★' : card.slice(-1);
+                const isJ = (card === 'JOKER');
+                const rank = isJ ? '★' : card.slice(0, -1);
+                const suit = isJ ? '★' : card.slice(-1);
                 const isRed = (suit === '♥' || suit === '♦');
-                const textColor = isJoker ? "text-amber-600" : (isRed ? "text-red-600" : "text-slate-900");
+                const textColor = isJ ? "text-amber-600" : (isRed ? "text-red-600" : "text-slate-900");
 
                 el.className = `hand-card w-12 h-16 bg-white rounded-lg border-2 border-slate-200 flex flex-col items-center justify-between p-1 font-black text-xs ${textColor} ${selectedHandIndex === idx ? 'selected' : ''}`;
                 
-                if (isJoker) {
+                if (isJ) {
                     el.innerHTML = `<div class="text-[7px]">JOKER</div><div class="text-base text-amber-500">★</div><div class="text-[7px] rotate-180">JOKER</div>`;
                 } else {
-                    el.innerHTML = `<div class="w-full flex justify-between text-[9px]"><span>${rank}</span><span>${suit}</span></div><div class="text-base">${suit}</div><div class="w-full flex justify-between text-[9px] rotate-180"><span>${rank}</span><span>${suit}</span></div>`;
+                    el.innerHTML = `<div class="w-full flex justify-between text-[8px] leading-none"><span>${rank}</span><span>${suit}</span></div><div class="text-base my-auto leading-none">${suit}</div><div class="w-full flex justify-between text-[8px] leading-none rotate-180"><span>${rank}</span><span>${suit}</span></div>`;
                 }
 
                 el.onclick = () => {
                     selectedHandIndex = (selectedHandIndex === idx) ? null : idx;
-                    updateUI();
+                    renderHand();
+                    renderHighlights();
                 };
                 container.appendChild(el);
             });
-        }
-
-        function renderBoardTokens() {
-            let markedSet = new Set();
-            [...verifiedSeries.red, ...verifiedSeries.green].forEach(s => s.forEach(p => markedSet.add(`${p.r},${p.c}`)));
-
-            for (let r = 0; r < 10; r++) {
-                for (let c = 0; c < 10; c++) {
-                    const token = document.getElementById(`token-${r}-${c}`);
-                    const cell = boardState[r][c];
-                    token.innerHTML = '';
-                    token.className = 'cursor-pointer flex items-center justify-center rounded-full';
-                    if (cell) {
-                        token.className += ` ${cell.player === 'red' ? 'bg-red-600' : 'bg-emerald-600'} shadow-md`;
-                        if (markedSet.has(`${r},${c}`)) {
-                            token.innerHTML = `<span class="text-amber-300 font-black text-sm">X</span>`;
-                        }
-                    }
-                }
-            }
         }
 
         function renderHighlights() {
@@ -488,12 +440,12 @@
             }
             document.getElementById('replace-container').classList.add('hidden');
 
-            if (selectedHandIndex === null || !isHandVisible) return;
+            if (selectedHandIndex === null || gameState.gameOver) return;
 
-            const hand = playerHands[currentTurnIndex];
+            const hand = gameState.hands[gameState.currentTurnIndex];
             const card = hand[selectedHandIndex];
-            const teamColor = getCurrentTeamColor();
-            const opponentTeamColor = teamColor === 'red' ? 'green' : 'red';
+            const myTeamColor = (gameState.currentTurnIndex % 2 === 0) ? 'red' : 'green';
+            const opponentTeamColor = myTeamColor === 'red' ? 'green' : 'red';
 
             let matchCount = 0, availableCount = 0;
             const is2J = (card === 'J♥' || card === 'J♦');
@@ -503,26 +455,18 @@
             for (let r = 0; r < 10; r++) {
                 for (let c = 0; c < 10; c++) {
                     const bCard = CARD_LAYOUT[r][c];
-                    const cell = boardState[r][c];
+                    const cell = gameState.board[r][c];
                     let highlight = false;
 
-                    if (is2J && cell === null) {
-                        highlight = true;
-                    } else if (is1J && cell && cell.player === opponentTeamColor) {
-                        highlight = true;
-                    } else if (isJk && bCard === 'JOKER' && cell === null) {
-                        highlight = true;
-                    } else if (!is2J && !is1J && !isJk && bCard === card) {
+                    if (is2J && cell === null) highlight = true;
+                    else if (is1J && cell && cell.player === opponentTeamColor) highlight = true;
+                    else if (isJk && bCard === 'JOKER' && cell === null) highlight = true;
+                    else if (!is2J && !is1J && !isJk && bCard === card) {
                         matchCount++;
-                        if (cell === null) {
-                            highlight = true;
-                            availableCount++;
-                        }
+                        if (cell === null) { highlight = true; availableCount++; }
                     }
 
-                    if (highlight) {
-                        document.getElementById(`card-cell-${r}-${c}`).classList.add('cell-highlight');
-                    }
+                    if (highlight) document.getElementById(`card-cell-${r}-${c}`).classList.add('cell-highlight');
                 }
             }
 
@@ -531,7 +475,128 @@
             }
         }
 
-        // Modale de Configuration
+        function handleBoardClick(r, c) {
+            if (selectedHandIndex === null || gameState.gameOver) return;
+
+            const hand = gameState.hands[gameState.currentTurnIndex];
+            const playedCard = hand[selectedHandIndex];
+            const teamColor = (gameState.currentTurnIndex % 2 === 0) ? 'red' : 'green';
+            const opponentTeamColor = teamColor === 'red' ? 'green' : 'red';
+            const boardCard = CARD_LAYOUT[r][c];
+            const targetCell = gameState.board[r][c];
+
+            let validMove = false;
+            const is2J = (playedCard === 'J♥' || playedCard === 'J♦');
+            const is1J = (playedCard === 'J♠' || playedCard === 'J♣');
+            const isJk = (playedCard === 'JOKER');
+
+            if (targetCell === null) {
+                if (is2J) validMove = true;
+                else if (isJk && boardCard === 'JOKER') validMove = true;
+                else if (boardCard === playedCard) validMove = true;
+
+                if (validMove) {
+                    gameState.board[r][c] = { player: teamColor };
+                    hand.splice(selectedHandIndex, 1);
+                    if (gameState.deck.length > 0) hand.push(gameState.deck.pop());
+                    gameState.lastPlayedCell = { r, c, ts: Date.now() };
+                }
+            } else if (targetCell.player === opponentTeamColor && is1J) {
+                const isLocked = [...gameState.verifiedSeries.red, ...gameState.verifiedSeries.green].some(s =>
+                    s.some(p => p.r === r && p.c === c)
+                );
+                if (!isLocked) {
+                    gameState.board[r][c] = null;
+                    validMove = true;
+                    hand.splice(selectedHandIndex, 1);
+                    if (gameState.deck.length > 0) hand.push(gameState.deck.pop());
+                    gameState.lastPlayedCell = { r, c, ts: Date.now() };
+                }
+            }
+
+            if (validMove) {
+                selectedHandIndex = null;
+                recalculateAllSeries();
+                if (!gameState.gameOver) {
+                    gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.playerCountMode;
+                }
+                renderBoard();
+                renderHand();
+                updateUI();
+                renderHighlights();
+
+                if (gameState.gameOver && !victoryModalShown) {
+                    const winnerTeam = gameState.verifiedSeries.red.length >= 2 ? "Équipe Rouge" : "Équipe Verte";
+                    showVictoryModal(winnerTeam);
+                    victoryModalShown = true;
+                }
+            }
+        }
+
+        function replaceDeadCard() {
+            if (selectedHandIndex === null || gameState.gameOver) return;
+            const hand = gameState.hands[gameState.currentTurnIndex];
+            hand.splice(selectedHandIndex, 1);
+            if (gameState.deck.length > 0) hand.push(gameState.deck.pop());
+            selectedHandIndex = null;
+            renderHand();
+            renderHighlights();
+        }
+
+        function updateUI() {
+            const roleEl = document.getElementById('role-display');
+            roleEl.textContent = `Mode : ${gameState.playerCountMode} Joueurs (Partie Locale / Statique)`;
+
+            const currentName = gameState.playerNames[gameState.currentTurnIndex];
+            const currentTeam = gameState.currentTurnIndex % 2 === 0 ? 'Rouge' : 'Verte';
+            const currentTeamColor = gameState.currentTurnIndex % 2 === 0 ? 'red' : 'green';
+
+            if (gameState.gameOver) {
+                document.getElementById('turn-indicator').textContent = "Partie terminée";
+                document.getElementById('turn-indicator').className = "px-2.5 py-1 rounded-xl text-slate-700 bg-slate-100 border border-slate-300 font-bold truncate max-w-[140px]";
+            } else {
+                document.getElementById('turn-indicator').textContent = `${currentName} (${currentTeam})`;
+                document.getElementById('turn-indicator').className = currentTeamColor === 'red' ? 'px-2.5 py-1 rounded-xl text-red-900 bg-red-100 border border-red-300 font-bold truncate max-w-[140px]' : 'px-2.5 py-1 rounded-xl text-emerald-900 bg-emerald-100 border border-emerald-300 font-bold truncate max-w-[140px]';
+            }
+
+            const redScoreBox = document.getElementById('box-score-red');
+            const greenScoreBox = document.getElementById('box-score-green');
+
+            if (!gameState.gameOver) {
+                if (currentTeamColor === 'red') {
+                    redScoreBox.classList.add('score-active', 'border-red-500');
+                    greenScoreBox.classList.remove('score-active', 'border-emerald-500');
+                } else {
+                    greenScoreBox.classList.add('score-active', 'border-emerald-500');
+                    redScoreBox.classList.remove('score-active', 'border-red-500');
+                }
+            }
+
+            if (gameState.playerCountMode === 2) {
+                document.getElementById('label-team-red').textContent = gameState.playerNames[0];
+                document.getElementById('label-team-green').textContent = gameState.playerNames[1];
+            } else {
+                document.getElementById('label-team-red').textContent = `Rouge (${gameState.playerNames[0]} & ${gameState.playerNames[2]})`;
+                document.getElementById('label-team-green').textContent = `Vert (${gameState.playerNames[1]} & ${gameState.playerNames[3]})`;
+            }
+
+            document.getElementById('score-red').textContent = `${gameState.verifiedSeries.red.length} / 2`;
+            document.getElementById('score-green').textContent = `${gameState.verifiedSeries.green.length} / 2`;
+        }
+
+        function showVictoryModal(winnerTeam) {
+            document.getElementById('victory-winner').textContent = `${winnerTeam} remporte la victoire !`;
+            const modal = document.getElementById('victory-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeVictoryModal() {
+            const modal = document.getElementById('victory-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
         function openConfigModal() {
             document.getElementById('config-modal').classList.remove('hidden');
             document.getElementById('config-modal').classList.add('flex');
@@ -539,35 +604,37 @@
 
         function updateConfigFields() {
             const mode = document.querySelector('input[name="mode"]:checked').value;
-            const inputP3 = document.getElementById('input-p3');
-            const inputP4 = document.getElementById('input-p4');
-
             if (mode === '4') {
-                inputP3.classList.remove('hidden');
-                inputP4.classList.remove('hidden');
+                document.getElementById('input-p3').classList.remove('hidden');
+                document.getElementById('input-p4').classList.remove('hidden');
             } else {
-                inputP3.classList.add('hidden');
-                inputP4.classList.add('hidden');
+                document.getElementById('input-p3').classList.add('hidden');
+                document.getElementById('input-p4').classList.add('hidden');
             }
         }
 
         function applyConfigAndStart() {
             const mode = parseInt(document.querySelector('input[name="mode"]:checked').value);
-            playerCountMode = mode;
+            const names = [
+                document.getElementById('input-p1').value.trim() || "Joueur 1",
+                document.getElementById('input-p2').value.trim() || "Joueur 2",
+                document.getElementById('input-p3').value.trim() || "Joueur 3",
+                document.getElementById('input-p4').value.trim() || "Joueur 4"
+            ];
 
-            playerNames.p1 = document.getElementById('input-p1').value.trim() || "Joueur 1";
-            playerNames.p2 = document.getElementById('input-p2').value.trim() || "Joueur 2";
-            playerNames.p3 = document.getElementById('input-p3').value.trim() || "Joueur 3";
-            playerNames.p4 = document.getElementById('input-p4').value.trim() || "Joueur 4";
+            gameState.playerCountMode = mode;
+            gameState.playerNames = names;
+            lastWinnerTeam = null;
 
             document.getElementById('config-modal').classList.add('hidden');
             document.getElementById('config-modal').classList.remove('flex');
 
-            startNewGame();
+            initNewGame();
         }
 
-        window.onload = function() {
-            startNewGame();
+        // Démarrer automatiquement le jeu lors du chargement de la page
+        window.onload = () => {
+            initNewGame();
         };
     </script>
 </body>
