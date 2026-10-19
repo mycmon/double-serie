@@ -10,9 +10,9 @@
            VARIABLES GLOBALES : Ajustez facilement tailles & styles ici
            ========================================================== */
         :root {
-            --card-font-size: 12px;       /* Taille des chiffres/symboles dans les coins */
-            --card-center-size: 24px;    /* Taille du symbole principal au centre */
-            --token-size: 22px;          /* Taille des jetons sur le plateau */
+            --card-font-size: 9px;       /* Taille des chiffres/symboles dans les coins */
+            --card-center-size: 14px;    /* Taille du symbole principal au centre */
+            --token-size: 26px;          /* Taille des jetons sur le plateau */
         }
 
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -105,7 +105,13 @@
 
             <!-- Main du joueur -->
             <div class="bg-white border border-slate-200 p-3 rounded-2xl shadow-sm flex flex-col gap-2">
-                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Votre Main de Cartes</h2>
+                <div class="flex justify-between items-center">
+                    <h2 id="hand-title" class="text-xs font-bold uppercase tracking-wider text-slate-400">Main de Cartes</h2>
+                    <button onclick="toggleHandVisibility()" class="text-[11px] bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded-lg hover:bg-indigo-100 transition">
+                        Afficher/Cacher
+                    </button>
+                </div>
+
                 <div id="player-hand" class="flex gap-2 overflow-x-auto py-2 min-h-[90px] items-center justify-center"></div>
                 
                 <div id="replace-container" class="hidden mt-1">
@@ -199,6 +205,7 @@
         let lastWinnerTeam = null;
         let selectedHandIndex = null;
         let victoryModalShown = false;
+        let isHandVisible = true; // État pour cacher/afficher la main entre les joueurs
 
         let gameState = {
             board: Array(10).fill(null).map(() => Array(10).fill(null)),
@@ -230,6 +237,7 @@
             gameState.lastPlayedCell = null;
             selectedHandIndex = null;
             victoryModalShown = false;
+            isHandVisible = true;
             
             if (lastWinnerTeam === 'red') {
                 gameState.currentTurnIndex = 0;
@@ -257,6 +265,12 @@
         function resetGame() {
             initNewGame();
             closeVictoryModal();
+        }
+
+        function toggleHandVisibility() {
+            isHandVisible = !isHandVisible;
+            renderHand();
+            renderHighlights();
         }
 
         function isCellValidForTeam(r, c, teamColor) {
@@ -404,6 +418,18 @@
             const container = document.getElementById('player-hand');
             container.innerHTML = '';
 
+            const currentName = gameState.playerNames[gameState.currentTurnIndex];
+
+            // Si la main est cachée pour le passage de tour
+            if (!isHandVisible) {
+                container.innerHTML = `
+                    <button onclick="toggleHandVisibility()" class="py-2.5 px-4 bg-slate-900 text-white rounded-xl text-xs font-bold shadow hover:bg-slate-800 transition my-2">
+                        👁️ Afficher la main de ${currentName}
+                    </button>
+                `;
+                return;
+            }
+
             const currentHand = gameState.hands[gameState.currentTurnIndex] || [];
 
             currentHand.forEach((card, idx) => {
@@ -440,7 +466,7 @@
             }
             document.getElementById('replace-container').classList.add('hidden');
 
-            if (selectedHandIndex === null || gameState.gameOver) return;
+            if (selectedHandIndex === null || gameState.gameOver || !isHandVisible) return;
 
             const hand = gameState.hands[gameState.currentTurnIndex];
             const card = hand[selectedHandIndex];
@@ -476,7 +502,7 @@
         }
 
         function handleBoardClick(r, c) {
-            if (selectedHandIndex === null || gameState.gameOver) return;
+            if (selectedHandIndex === null || gameState.gameOver || !isHandVisible) return;
 
             const hand = gameState.hands[gameState.currentTurnIndex];
             const playedCard = hand[selectedHandIndex];
@@ -519,6 +545,7 @@
                 recalculateAllSeries();
                 if (!gameState.gameOver) {
                     gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.playerCountMode;
+                    isHandVisible = false; // Cache automatiquement la main au changement de joueur
                 }
                 renderBoard();
                 renderHand();
@@ -534,7 +561,7 @@
         }
 
         function replaceDeadCard() {
-            if (selectedHandIndex === null || gameState.gameOver) return;
+            if (selectedHandIndex === null || gameState.gameOver || !isHandVisible) return;
             const hand = gameState.hands[gameState.currentTurnIndex];
             hand.splice(selectedHandIndex, 1);
             if (gameState.deck.length > 0) hand.push(gameState.deck.pop());
@@ -550,6 +577,8 @@
             const currentName = gameState.playerNames[gameState.currentTurnIndex];
             const currentTeam = gameState.currentTurnIndex % 2 === 0 ? 'Rouge' : 'Verte';
             const currentTeamColor = gameState.currentTurnIndex % 2 === 0 ? 'red' : 'green';
+
+            document.getElementById('hand-title').textContent = `Main de : ${currentName}`;
 
             if (gameState.gameOver) {
                 document.getElementById('turn-indicator').textContent = "Partie terminée";
