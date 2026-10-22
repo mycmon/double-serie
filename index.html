@@ -288,7 +288,7 @@
             } else if (lastWinnerTeam === 'green') {
                 gameState.currentTurnIndex = 1;
             } else {
-                gameState.currentTurnIndex = Math.floor(Math.random() * gameState.playerCountMode);
+                gameState.currentTurnIndex = 0; // Par défaut, Michel (Joueur 1) commence
             }
 
             const cardsPerPlayer = (gameState.playerCountMode === 2) ? 7 : 5;
@@ -304,6 +304,7 @@
         }
 
         function showTurnModal() {
+            updateUI(); // S'assure que l'UI correspond au joueur dont c'est le tour avant de révéler
             const currentName = gameState.playerNames[gameState.currentTurnIndex];
             const currentTeam = (gameState.currentTurnIndex % 2 === 0) ? 'Rouge' : 'Verte';
             document.getElementById('modal-turn-title').textContent = `C'est au tour de ${currentName}`;
@@ -498,9 +499,6 @@
             const hand = gameState.hands[pIndex];
             const card = hand[selectedHandIndex];
             
-            // Correction de l'attribution des couleurs : 
-            // Index 0 et 2 = Équipe Rouge ('red')
-            // Index 1 et 3 = Équipe Verte ('green')
             const teamColor = (pIndex % 2 === 0) ? 'red' : 'green';
             const opponentTeamColor = (teamColor === 'red') ? 'green' : 'red';
             
@@ -559,12 +557,13 @@
                 selectedHandIndex = null;
                 recalculateAllSeries();
                 renderBoard();
-                updateUI();
 
                 if (gameState.gameOver) {
+                    updateUI();
                     const winnerTeam = gameState.verifiedSeries.red.length >= 2 ? "Équipe Rouge" : "Équipe Verte";
                     showVictoryModal(winnerTeam);
                 } else {
+                    // Passe au joueur suivant avant d'afficher l'interface du nouveau tour
                     gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.playerCountMode;
                     showTurnModal();
                 }
