@@ -161,7 +161,7 @@
                 🔒
             </div>
             <div>
-                <h2 id="modal-turn-title" class="text-lg font-black text-slate-900 mb-1">C'est au tour de Joueur 2</h2>
+                <h2 id="modal-turn-title" class="text-lg font-black text-slate-900 mb-1">C'est au tour de Joueur</h2>
                 <p id="modal-turn-subtitle" class="text-xs font-semibold text-slate-500">Passez l'appareil au joueur concerné.</p>
             </div>
             <button onclick="revealHand()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl shadow-lg transition text-xs uppercase tracking-wider">
@@ -305,13 +305,12 @@
 
         function showTurnModal() {
             const currentName = gameState.playerNames[gameState.currentTurnIndex];
-            const currentTeam = gameState.currentTurnIndex % 2 === 0 ? 'Rouge' : 'Verte';
+            const currentTeam = (gameState.currentTurnIndex % 2 === 0) ? 'Rouge' : 'Verte';
             document.getElementById('modal-turn-title').textContent = `C'est au tour de ${currentName}`;
             document.getElementById('modal-turn-subtitle').textContent = `Équipe ${currentTeam} - Passez l'appareil au joueur concerné.`;
             document.getElementById('turn-transition-modal').classList.remove('hidden');
             document.getElementById('turn-transition-modal').classList.add('flex');
             
-            // Masquer les cartes en arrière-plan pendant la transition
             document.getElementById('player-hand').innerHTML = '<span class="text-xs text-slate-400 italic">Main masquée pour la confidentialité.</span>';
         }
 
@@ -498,8 +497,13 @@
             const pIndex = gameState.currentTurnIndex;
             const hand = gameState.hands[pIndex];
             const card = hand[selectedHandIndex];
+            
+            // Correction de l'attribution des couleurs : 
+            // Index 0 et 2 = Équipe Rouge ('red')
+            // Index 1 et 3 = Équipe Verte ('green')
             const teamColor = (pIndex % 2 === 0) ? 'red' : 'green';
-            const opponentTeamColor = teamColor === 'red' ? 'green' : 'red';
+            const opponentTeamColor = (teamColor === 'red') ? 'green' : 'red';
+            
             const boardCard = CARD_LAYOUT[r][c];
             const targetCell = gameState.board[r][c];
 
@@ -561,7 +565,6 @@
                     const winnerTeam = gameState.verifiedSeries.red.length >= 2 ? "Équipe Rouge" : "Équipe Verte";
                     showVictoryModal(winnerTeam);
                 } else {
-                    // Passer au joueur suivant et cacher la main
                     gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.playerCountMode;
                     showTurnModal();
                 }
@@ -577,15 +580,14 @@
             renderHand();
             renderHighlights();
 
-            // Fin du tour après remplacement
             gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.playerCountMode;
             showTurnModal();
         }
 
         function updateUI() {
             const currentName = gameState.playerNames[gameState.currentTurnIndex];
-            const currentTeam = gameState.currentTurnIndex % 2 === 0 ? 'Rouge' : 'Verte';
-            const currentTeamColor = gameState.currentTurnIndex % 2 === 0 ? 'red' : 'green';
+            const currentTeam = (gameState.currentTurnIndex % 2 === 0) ? 'Rouge' : 'Verte';
+            const currentTeamColor = (gameState.currentTurnIndex % 2 === 0) ? 'red' : 'green';
 
             const handSection = document.getElementById('hand-section');
             const handTitle = document.getElementById('hand-title');
@@ -600,7 +602,7 @@
             if (gameState.gameOver) {
                 document.getElementById('turn-indicator').textContent = "Partie terminée";
             } else {
-                document.getElementById('turn-indicator').textContent = `${currentName} (${currentTeam})` ;
+                document.getElementById('turn-indicator').textContent = `${currentName} (${currentTeam})`;
             }
 
             const redScoreBox = document.getElementById('box-score-red');
@@ -743,7 +745,6 @@
             initNewGame();
         }
 
-        // Démarrage initial au chargement de la page
         window.onload = () => {
             initNewGame();
         };
