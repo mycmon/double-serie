@@ -7,12 +7,20 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 :root {
---card-font-size: 20px;
---card-center-size: 22px;
---token-size: 36px;
+--card-font-size: 14px;
+--card-center-size: 16px;
+--token-size: 28px;
+--hand-card-width: 60px;
+--hand-card-height: 85px;
+}
+​@media (min-width: 640px) {
+:root {
+--card-font-size: 18px;
+--card-center-size: 20px;
+--token-size: 34px;
 --hand-card-width: 65px;
 --hand-card-height: 90px;
---board-cell-min-size: 48px;
+}
 }
 ​@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 body { font-family: 'Inter', sans-serif; user-select: none; background-color: #0f172a; }
@@ -22,8 +30,6 @@ box-shadow: inset 0 0 0 1px rgba(30, 41, 59, 0.9);
 transition: all 0.2s ease;
 width: 100%;
 height: 100%;
-min-width: var(--board-cell-min-size);
-min-height: calc(var(--board-cell-min-size) * 1.3);
 }
 ​.dynamic-card-font { font-size: var(--card-font-size) !important; }
 .dynamic-center-font { font-size: var(--card-center-size) !important; }
@@ -73,7 +79,7 @@ animation: flash-animation 0.8s ease-in-out 2;
 ​<!-- En-tête -->
 <header class="w-full max-w-[850px] mx-auto bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
 <div>
-<h1 class="text-2xl font-black text-slate-900"><span class="text-red-600">Double</span> <span class="text-emerald-600">Série</span> <span>👁 👁 J♣</span> <span class="text-red-600">J♦</span> <span>/ 👁 J♠</span> <span class="text-red-600">J♥</span></h1>
+<h1 class="text-xl sm:text-2xl font-black text-slate-900"><span class="text-red-600">Double</span> <span class="text-emerald-600">Série</span> <span>👁 👁 J♣</span> <span class="text-red-600">J♦</span> <span>/ 👁 J♠</span> <span class="text-red-600">J♥</span></h1>
 <p id="role-display" class="text-sm font-bold text-slate-600 mt-0.5">Jeu Local (Sans Serveur)</p>
 </div>
 <div class="flex gap-2 items-center">
@@ -82,30 +88,30 @@ animation: flash-animation 0.8s ease-in-out 2;
 </div>
 </header>
 ​<!-- Zone principale -->
-<main class="w-full max-w-[850px] mx-auto flex flex-col gap-5 items-center my-3">
-​<!-- Plateau central -->
-<div class="w-full bg-white rounded-2xl p-2 border-4 border-slate-300 shadow-xl overflow-auto flex justify-center">
-<div class="relative min-w-[500px] w-full aspect-square">
+<main class="w-full max-w-[850px] mx-auto flex flex-col gap-4 items-center my-3">
+​<!-- Plateau central réactif -->
+<div class="w-full bg-white rounded-2xl p-2 border-4 border-slate-300 shadow-xl flex justify-center">
+<div class="relative w-full max-w-[650px] aspect-square">
 <div id="vector-board" class="absolute inset-0 grid grid-cols-10 grid-rows-10 gap-[2px] bg-slate-200 p-1 rounded-xl"></div>
 <div id="tokens-layer" class="absolute inset-0 grid grid-cols-10 grid-rows-10 gap-[2px] p-1 pointer-events-auto"></div>
 </div>
 </div>
 ​<!-- Panneau inférieur -->
-<div class="w-full flex flex-col gap-4">
+<div class="w-full flex flex-col gap-3">
 ​<!-- Scores & Derniers coups -->
 <div class="bg-white border border-slate-200 p-3 rounded-2xl shadow-sm grid grid-cols-2 gap-2 text-center">
 <div id="box-score-red" class="bg-red-50 border border-red-200 p-2 rounded-xl transition-all flex flex-col justify-between">
-<span id="label-team-red" class="text-[24px] font-bold text-red-700 block truncate">Équipe Rouge</span>
+<span id="label-team-red" class="text-lg sm:text-xl font-bold text-red-700 block truncate">Équipe Rouge</span>
 <div class="flex items-center justify-between px-2 mt-1">
-<span id="score-red" class="text-lg font-black text-red-600">0 / 2</span>
-<span id="last-move-red" class="text-[20px] font-normal text-red-600 bg-red-100 px-2 py-0.5 rounded-lg border border-red-200 truncate max-w-[240px]" title="Dernier coup">---</span>
+<span id="score-red" class="text-base sm:text-lg font-black text-red-600">0 / 2</span>
+<span id="last-move-red" class="text-xs sm:text-sm font-normal text-red-600 bg-red-100 px-2 py-0.5 rounded-lg border border-red-200 truncate max-w-[140px]" title="Dernier coup">---</span>
 </div>
 </div>
 <div id="box-score-green" class="bg-emerald-50 border border-emerald-200 p-2 rounded-xl transition-all flex flex-col justify-between">
-<span id="label-team-green" class="text-[20px] font-bold text-emerald-700 block truncate">Équipe Verte</span>
+<span id="label-team-green" class="text-lg sm:text-xl font-bold text-emerald-700 block truncate">Équipe Verte</span>
 <div class="flex items-center justify-between px-2 mt-1">
-<span id="score-green" class="text-lg font-black text-emerald-600">0 / 2</span>
-<span id="last-move-green" class="text-[20px] font-normal text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 truncate max-w-[240px]" title="Dernier coup">---</span>
+<span id="score-green" class="text-base sm:text-lg font-black text-emerald-600">0 / 2</span>
+<span id="last-move-green" class="text-xs sm:text-sm font-normal text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 truncate max-w-[140px]" title="Dernier coup">---</span>
 </div>
 </div>
 </div>
@@ -239,7 +245,7 @@ for (let p = 0; p < gameState.playerCountMode; p++) {
 gameState.hands[p].push(gameState.deck.pop());
 }
 }
-​renderBoard();
+​renderBoard(true); // Forcer le rendu propre du plateau
 renderHand();
 updateUI();
 renderHighlights();
@@ -388,10 +394,12 @@ const colorClass = isRed ? "text-red-600" : "text-slate-900";
 const adjustClass = (suit === '♥') ? "symbol-adjust" : "";
 return <div class="dynamic-center-font font-normal ${colorClass} my-auto leading-none ${adjustClass}">${suit}</div>;
 }
-​function renderBoard() {
+​function renderBoard(forceRebuild = false) {
 const vectorBoard = document.getElementById('vector-board');
 const tokensLayer = document.getElementById('tokens-layer');
-if (vectorBoard.children.length === 0) {
+​if (forceRebuild || vectorBoard.children.length === 0) {
+vectorBoard.innerHTML = '';
+tokensLayer.innerHTML = '';
 for (let r = 0; r < 10; r++) {
 for (let c = 0; c < 10; c++) {
 const cardCode = CARD_LAYOUT[r][c];
@@ -499,7 +507,10 @@ else if (!is2J && !is1J && !isJk && bCard === card) {
 matchCount++;
 if (cell === null) { highlight = true; availableCount++; }
 }
-​if (highlight) document.getElementById(card-cell-${r}-${c}).classList.add('cell-highlight');
+​if (highlight) {
+const targetCellDiv = document.getElementById(card-cell-${r}-${c});
+if (targetCellDiv) targetCellDiv.classList.add('cell-highlight');
+}
 }
 }
 ​if (!is2J && !is1J && !isJk && matchCount > 0 && availableCount === 0) {
@@ -621,10 +632,10 @@ gameState.playerNames = names;
 document.getElementById('config-modal').classList.remove('flex');
 ​initNewGame();
 }
-​// Démarrer la partie automatiquement au chargement de la page
-window.onload = () => {
+​// Démarrage garanti au chargement complet du DOM
+document.addEventListener("DOMContentLoaded", () => {
 initNewGame();
-};
+});
 </script>
 </body>
 </html>
