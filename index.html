@@ -85,7 +85,7 @@
     <header class="w-full max-w-[850px] mx-auto bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         <div> 
             <h1 class="text-2xl font-black text-slate-900"><span class="text-red-600">Double</span> <span class="text-emerald-600">Série</span></h1>
-            <p id="role-display" class="text-sm font-bold text-slate-600 mt-0.5">Mode Autonome (Local)</p>
+            <p id="role-display" class="text-sm font-bold text-slate-600 mt-0.5">Mode Autonome (Passe-Passe)</p>
         </div>
         <div class="flex gap-2 items-center">
             <button onclick="openConfigModal()" class="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-bold transition">⚙️ Configurer</button>
@@ -145,6 +145,22 @@
 
         </div>
     </main>
+
+    <!-- Écran de Transition / Passe-Passe (Cache le jeu pour le joueur suivant) -->
+    <div id="pass-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="bg-white border-2 border-indigo-400 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center flex flex-col gap-4">
+            <div class="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-1 border-2 border-indigo-300 text-2xl font-bold">
+                🔒
+            </div>
+            <h2 class="text-xs font-black uppercase tracking-widest text-indigo-600">Fin du tour</h2>
+            <h3 id="pass-next-player" class="text-2xl font-black text-slate-900">Passez la tablette au joueur suivant</h3>
+            <p class="text-xs text-slate-500">Assurez-vous que l'ancien joueur ne regarde pas l'écran.</p>
+            
+            <button onclick="unlockNextTurn()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl shadow transition text-sm">
+                C'est à mon tour / Afficher mes cartes
+            </button>
+        </div>
+    </div>
 
     <!-- Modale Configuration -->
     <div id="config-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
@@ -366,7 +382,7 @@
                 }
             } else {
                 document.getElementById('turn-indicator').textContent = `${currentName} (${currentTeam})`;
-                document.getElementById('turn-indicator').className = currentTeamColor === 'red' 
+                document.getElementById('turn-indicator').className = myTeamColor === 'red' 
                     ? 'px-3.5 py-1.5 rounded-xl text-red-900 bg-red-100 border border-red-300 font-extrabold truncate max-w-[220px] text-sm' 
                     : 'px-3.5 py-1.5 rounded-xl text-emerald-900 bg-emerald-100 border border-emerald-300 font-extrabold truncate max-w-[220px] text-sm';
             }
@@ -577,6 +593,7 @@
                 recalculateAllSeries();
                 if (!gameState.gameOver) {
                     gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.playerCountMode;
+                    showPassModal(); // Affiche l'écran de verrouillage pour le joueur suivant
                 }
                 updateStateUI();
             }
@@ -598,7 +615,22 @@
 
             selectedHandIndex = null;
             gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.playerCountMode;
+            showPassModal(); // Affiche l'écran de verrouillage pour le joueur suivant
             updateStateUI();
+        }
+
+        function showPassModal() {
+            const nextPlayerName = gameState.playerNames[gameState.currentTurnIndex];
+            document.getElementById('pass-next-player').textContent = `Au tour de ${nextPlayerName}`;
+            const modal = document.getElementById('pass-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function unlockNextTurn() {
+            const modal = document.getElementById('pass-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
 
         function isCornerJoker(r, c) {
